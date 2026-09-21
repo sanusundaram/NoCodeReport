@@ -1,4 +1,4 @@
-// Universal Report Builder - Production Quality Desk Page Controller
+﻿// Universal Report Builder - Production Quality Desk Page Controller
 
 frappe.pages["universal-report-builder"].on_page_load = function (wrapper) {
 	const page = frappe.ui.make_app_page({
@@ -29,9 +29,8 @@ function init_builder(page, wrapper) {
 		order_by: [], // { field, direction }
 		calculated_fields: [], // { expression, alias }
 		sql: "",
-		params: {},
 		explanation: "",
-		debounce_timer: null
+
 	};
 
 	function setup_dom(html) {
@@ -72,11 +71,9 @@ function bind_ui_events(page, state) {
 		if (!state.sql) return frappe.show_alert({ message: __("No SQL query generated yet"), indicator: "orange" });
 		copy_to_clipboard(state.sql, __("SQL copied successfully."));
 	});
-	$main.find("#urb-btn-copy-params").on("click", function () {
-		if (!state.sql) return frappe.show_alert({ message: __("No SQL query generated yet"), indicator: "orange" });
-		const combined = `-- SQL:\n${state.sql}\n\n-- Parameters:\n/*\n${JSON.stringify(state.params, null, 2)}\n*/`;
-		copy_to_clipboard(combined, __("SQL and parameters copied to clipboard."));
-	});
+
+
+
 
 	$main.find("#urb-alert-close").on("click", function () { hide_alert($main); });
 
@@ -94,7 +91,7 @@ function bind_ui_events(page, state) {
 	$main.find("#urb-btn-select-all").on("click", function () {
 		if (!state.metadata || !state.available_fields.length) return;
 		state.available_fields.forEach(function (f) {
-			if (!f.is_virtual && !is_field_selected(state, f.fieldname)) {
+			if (!f.is_virtual && !['Section Break','Column Break','Tab Break','HTML'].includes(f.fieldtype) && !is_field_selected(state, f.fieldname)) {
 				add_selected_field(state, f.fieldname, f.fieldname, f.label || f.fieldname, f.fieldtype, state.base_doctype);
 			}
 		});
@@ -122,7 +119,7 @@ function bind_ui_events(page, state) {
 	$main.find("#urb-btn-add-calc").on("click", function () { open_add_calc_dialog(state, $main); });
 
 	// Fit Graph
-	$main.find("#urb-btn-fit-graph").on("click", function () { render_graph(state, $main); });
+
 }
 
 function load_doctypes(state) {
@@ -252,7 +249,7 @@ function render_relationships_tree(state, $main) {
 						<span style="font-size: 11px; color: #718096;">&rarr; ${frappe.utils.escape_html(rel.target_doctype)}</span>
 					</div>
 					<div>
-						${!rel.has_permission ? '<span class="badge badge-danger" title="Permission Denied">🔒 Restricted</span>' : `<span class="urb-field-type-pill ${is_child ? 'table' : 'link'}">${badge_txt}</span> <i class="fa ${is_node_open ? 'fa-chevron-up' : 'fa-chevron-down'} text-muted urb-expand-icon"></i>`}
+						${!rel.has_permission ? '<span class="badge badge-danger" title="Permission Denied">ðŸ”’ Restricted</span>' : `<span class="urb-field-type-pill ${is_child ? 'table' : 'link'}">${badge_txt}</span> <i class="fa ${is_node_open ? 'fa-chevron-up' : 'fa-chevron-down'} text-muted urb-expand-icon"></i>`}
 					</div>
 				</div>
 				<div class="urb-rel-node-fields ${is_node_open ? '' : 'hidden'}" style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed #e2e8f0;">
@@ -384,7 +381,6 @@ function refresh_ui(state, $main) {
 	render_order_list(state, $main);
 	render_calc_list(state, $main);
 	render_graph(state, $main);
-	queue_sql_generation(state, $main);
 }
 
 function sync_rel_field_checkboxes(state, $main) {
@@ -413,6 +409,7 @@ function render_available_fields(state, $main) {
 	}
 
 	state.available_fields.forEach(function (f) {
+		if (['Section Break', 'Column Break', 'Tab Break', 'HTML'].includes(f.fieldtype)) return;
 		const is_selected = is_field_selected(state, f.fieldname);
 		const is_virtual = f.is_virtual;
 		let badge_cls = f.is_link ? "link" : (f.is_table ? "table" : "");
@@ -482,8 +479,7 @@ function render_selected_fields(state, $main) {
 
 		$tr.find(".urb-alias-input").on("change", function () {
 			sf.alias = $(this).val().trim() || sf.fieldname;
-			queue_sql_generation(state, $main);
-		});
+			});
 
 		$tr.find(".urb-btn-remove-field").on("click", function () {
 			state.selected_fields.splice(i, 1);
@@ -492,6 +488,172 @@ function render_selected_fields(state, $main) {
 
 		$tbody.append($tr);
 	});
+}
+
+// -------------------------------------------------------------
+// Field Type Classification & Compatibility
+// -------------------------------------------------------------
+
+function getFieldCategory(field) {
+	if (!field) return "other";
+	let ft = "";
+	if (typeof field === "string") {
+		ft = field.trim();
+	} else if (typeof field === "object") {
+		ft = (field.fieldtype || "").trim();
+	}
+
+	// Layout / UI fields
+	const layoutTypes = ["Section Break", "Column Break", "Tab Break", "Fold", "Heading", "HTML", "Button"];
+	if (layoutTypes.includes(ft)) return "layout";
+
+	// Table / Child fields
+	const tableTypes = ["Table", "Table MultiSelect"];
+	if (tableTypes.includes(ft)) return "table";
+
+	// Attachment / Image fields
+	const attachmentTypes = ["Attach", "Attach Image", "Image"];
+	if (attachmentTypes.includes(ft)) return "attachment";
+
+	// Numeric fields
+	const numericTypes = ["Int", "Float", "Currency", "Percent", "Duration", "Rating"];
+	if (numericTypes.includes(ft)) return "numeric";
+
+	// Date / Time
+	if (ft === "Date") return "date";
+	if (ft === "Datetime") return "datetime";
+	if (ft === "Time") return "time";
+
+	// Boolean
+	if (ft === "Check") return "boolean";
+
+	// Link
+	if (["Link", "Dynamic Link"].includes(ft)) return "link";
+
+	// Select
+	if (ft === "Select") return "select";
+
+	// Text fields
+	const textTypes = [
+		"Data", "Small Text", "Text", "Long Text", "Code", "Text Editor",
+		"Markdown Editor", "HTML Editor", "Password", "Phone", "Autocomplete",
+		"Read Only", "Color", "Signature", "Barcode", "Geolocation"
+	];
+	if (textTypes.includes(ft)) return "text";
+
+	return "other";
+}
+
+function isAggregationCompatible(field, aggregation) {
+	if (!field || !aggregation) return false;
+	if (typeof field === "object" && field.is_virtual) return false;
+
+	const fn = String(aggregation).trim().toUpperCase();
+	const cat = getFieldCategory(field);
+
+	if (["layout", "table", "attachment"].includes(cat)) return false;
+
+	if (fn === "COUNT") {
+		return ["text", "numeric", "date", "datetime", "time", "boolean", "link", "select", "other"].includes(cat);
+	}
+	if (fn === "SUM" || fn === "AVG") {
+		return cat === "numeric";
+	}
+	if (fn === "MIN" || fn === "MAX") {
+		return ["numeric", "date", "datetime", "time"].includes(cat);
+	}
+
+	return false;
+}
+
+function isFilterCompatible(field, operator) {
+	if (!field || !operator) return false;
+	if (typeof field === "object" && field.is_virtual) return false;
+
+	const op = String(operator).trim().toUpperCase();
+	const cat = getFieldCategory(field);
+
+	if (["layout", "table", "attachment"].includes(cat)) return false;
+
+	if (op === "=" || op === "!=" || op === "<>") {
+		return ["text", "numeric", "date", "datetime", "time", "boolean", "link", "select", "other"].includes(cat);
+	}
+	if (op === ">" || op === "<" || op === ">=" || op === "<=") {
+		return ["numeric", "date", "datetime", "time"].includes(cat);
+	}
+	if (op === "LIKE" || op === "NOT LIKE") {
+		return ["text", "link", "select"].includes(cat);
+	}
+	if (op === "IN" || op === "NOT IN") {
+		return ["text", "numeric", "date", "datetime", "time", "boolean", "link", "select"].includes(cat);
+	}
+	if (op === "BETWEEN") {
+		return ["numeric", "date", "datetime", "time"].includes(cat);
+	}
+	if (op === "IS NULL" || op === "IS NOT NULL") {
+		return ["text", "numeric", "date", "datetime", "time", "boolean", "link", "select", "other"].includes(cat);
+	}
+
+	return true;
+}
+
+function get_all_field_entries(state) {
+	const entries = [];
+	(state.available_fields || []).forEach(function (f) {
+		entries.push({
+			id: f.fieldname,
+			label: f.label ? `${f.label} (${f.fieldname})` : f.fieldname,
+			fieldtype: f.fieldtype,
+			is_virtual: f.is_virtual,
+			raw: f
+		});
+	});
+	Object.keys(state.expanded_rel_fields || {}).forEach(function (path) {
+		const fields = state.expanded_rel_fields[path] || [];
+		fields.forEach(function (f) {
+			const label_text = f.label || f.fieldname;
+			entries.push({
+				id: `${path}.${f.fieldname}`,
+				label: `${path} → ${label_text} (${f.fieldname})`,
+				fieldtype: f.fieldtype,
+				is_virtual: f.is_virtual,
+				raw: f
+			});
+		});
+	});
+	return entries;
+}
+
+function get_compatible_agg_field_options(state, func) {
+	const entries = get_all_field_entries(state);
+	const fn = (func || "").toUpperCase();
+	const options = [];
+
+	if (fn === "COUNT") {
+		options.push({ label: "* (All Rows)", value: "*" });
+	}
+
+	entries.forEach(function (entry) {
+		if (isAggregationCompatible(entry.raw || entry, fn)) {
+			options.push({ label: entry.label, value: entry.id });
+		}
+	});
+
+	return options;
+}
+
+function get_compatible_filter_field_options(state, operator) {
+	const entries = get_all_field_entries(state);
+	const op = (operator || "=").toUpperCase();
+	const options = [];
+
+	entries.forEach(function (entry) {
+		if (isFilterCompatible(entry.raw || entry, op)) {
+			options.push({ label: entry.label, value: entry.id });
+		}
+	});
+
+	return options;
 }
 
 // -------------------------------------------------------------
@@ -507,12 +669,31 @@ function render_filters_list(state, $main) {
 	}
 
 	state.filters.forEach(function (f, idx) {
+		let val_display = "";
+		if (f.operator === "IS NULL" || f.operator === "IS NOT NULL") {
+			val_display = "";
+		} else if (f.operator === "BETWEEN") {
+			if (Array.isArray(f.value) && f.value.length >= 2) {
+				val_display = `<code>${frappe.utils.escape_html(String(f.value[0]))} AND ${frappe.utils.escape_html(String(f.value[1]))}</code>`;
+			} else {
+				val_display = `<code>${frappe.utils.escape_html(String(f.value))}</code>`;
+			}
+		} else if (f.operator === "IN" || f.operator === "NOT IN") {
+			if (Array.isArray(f.value)) {
+				val_display = `<code>(${f.value.map(v => frappe.utils.escape_html(String(v))).join(", ")})</code>`;
+			} else {
+				val_display = `<code>(${frappe.utils.escape_html(String(f.value))})</code>`;
+			}
+		} else {
+			val_display = `<code>${frappe.utils.escape_html(String(f.value))}</code>`;
+		}
+
 		const $row = $(`
 			<div class="urb-filter-chip" style="display: flex; justify-content: space-between; align-items: center; background: #f1f5f9; padding: 5px 8px; border-radius: 4px; margin-bottom: 4px; font-size: 11px;">
 				<div>
 					<strong>${frappe.utils.escape_html(f.field)}</strong>
 					<span class="text-primary font-weight-bold mx-1">${frappe.utils.escape_html(f.operator)}</span>
-					<code>${frappe.utils.escape_html(String(f.value))}</code>
+					${val_display}
 				</div>
 				<button class="btn btn-xs btn-link text-danger urb-remove-filter" data-index="${idx}">&times;</button>
 			</div>
@@ -530,7 +711,12 @@ function render_filters_list(state, $main) {
 function open_add_filter_dialog(state, $main) {
 	if (!state.base_doctype) return frappe.msgprint(__("Please select a Base DocType first"));
 
-	const field_options = get_all_queryable_field_options(state);
+	const initial_op = "=";
+	let initial_field_options = get_compatible_filter_field_options(state, initial_op);
+	if (!initial_field_options.length) {
+		initial_field_options = [{ label: __("-- No compatible fields found --"), value: "" }];
+	}
+
 	const d = new frappe.ui.Dialog({
 		title: __("Add Filter"),
 		fields: [
@@ -538,7 +724,7 @@ function open_add_filter_dialog(state, $main) {
 				fieldname: "field",
 				label: __("Field"),
 				fieldtype: "Select",
-				options: field_options,
+				options: initial_field_options,
 				reqd: 1
 			},
 			{
@@ -546,23 +732,147 @@ function open_add_filter_dialog(state, $main) {
 				label: __("Operator"),
 				fieldtype: "Select",
 				options: ["=", "!=", ">", "<", ">=", "<=", "LIKE", "NOT LIKE", "IN", "NOT IN", "BETWEEN", "IS NULL", "IS NOT NULL"],
-				default: "=",
+				default: initial_op,
 				reqd: 1
 			},
 			{
 				fieldname: "value",
 				label: __("Value"),
-				fieldtype: "Data"
+				fieldtype: "Data",
+				reqd: 1
+			},
+			{
+				fieldname: "value_to",
+				label: __("To Value"),
+				fieldtype: "Data",
+				hidden: 1
 			}
 		],
 		primary_action_label: __("Add Filter"),
 		primary_action: function (values) {
-			state.filters.push(values);
+			if (!values.field) {
+				return frappe.msgprint(__("Please select a valid compatible field."));
+			}
+
+			const op = values.operator;
+			let final_val = values.value;
+
+			if (op === "IS NULL" || op === "IS NOT NULL") {
+				final_val = null;
+			} else if (op === "BETWEEN") {
+				if (values.value === undefined || values.value === null || values.value === "" ||
+					values.value_to === undefined || values.value_to === null || values.value_to === "") {
+					return frappe.msgprint(__("Please provide both From and To values for BETWEEN filter."));
+				}
+				final_val = [values.value, values.value_to];
+			} else if (op === "IN" || op === "NOT IN") {
+				if (!values.value || !String(values.value).trim()) {
+					return frappe.msgprint(__("Please provide comma-separated values for IN filter."));
+				}
+				final_val = String(values.value).split(",").map(v => v.trim()).filter(Boolean);
+			} else {
+				if (values.value === undefined || values.value === null || values.value === "") {
+					return frappe.msgprint(__("Please provide a filter value."));
+				}
+				final_val = values.value;
+			}
+
+			state.filters.push({
+				field: values.field,
+				operator: values.operator,
+				value: final_val
+			});
 			d.hide();
 			refresh_ui(state, $main);
 		}
 	});
+
+	function update_ui_for_operator(op) {
+		let new_options = get_compatible_filter_field_options(state, op);
+		if (!new_options.length) {
+			new_options = [{ label: __("-- No compatible fields found --"), value: "" }];
+		}
+		const current_field = d.get_value("field");
+		const is_compat = new_options.some(function (opt) {
+			return (opt.value || opt) === current_field && current_field !== "";
+		});
+
+		d.set_df_property("field", "options", new_options);
+		const field_ctrl = d.get_field("field");
+		if (field_ctrl && field_ctrl.$input) {
+			field_ctrl.$input.empty();
+			new_options.forEach(function (opt) {
+				field_ctrl.$input.append($("<option>", { value: opt.value, text: opt.label }));
+			});
+		}
+
+		if (is_compat && current_field) {
+			d.set_value("field", current_field);
+		} else {
+			// Clear field selection if incompatible (Option A from Req 7)
+			d.set_value("field", "");
+		}
+
+		// Adjust value inputs based on operator (Req 5)
+		if (op === "IS NULL" || op === "IS NOT NULL") {
+			d.set_df_property("value", "hidden", 1);
+			d.set_df_property("value", "reqd", 0);
+			d.set_df_property("value_to", "hidden", 1);
+			d.set_df_property("value_to", "reqd", 0);
+			d.set_value("value", "");
+			d.set_value("value_to", "");
+			if (d.get_field("value") && d.get_field("value").$wrapper) d.get_field("value").$wrapper.hide();
+			if (d.get_field("value_to") && d.get_field("value_to").$wrapper) d.get_field("value_to").$wrapper.hide();
+		} else if (op === "BETWEEN") {
+			d.set_df_property("value", "hidden", 0);
+			d.set_df_property("value", "label", __("From Value"));
+			d.set_df_property("value", "reqd", 1);
+			d.set_df_property("value_to", "hidden", 0);
+			d.set_df_property("value_to", "label", __("To Value"));
+			d.set_df_property("value_to", "reqd", 1);
+			if (d.get_field("value") && d.get_field("value").$wrapper) {
+				d.get_field("value").$wrapper.show();
+				if (d.get_field("value").$label) d.get_field("value").$label.text(__("From Value"));
+			}
+			if (d.get_field("value_to") && d.get_field("value_to").$wrapper) {
+				d.get_field("value_to").$wrapper.show();
+				if (d.get_field("value_to").$label) d.get_field("value_to").$label.text(__("To Value"));
+			}
+		} else if (op === "IN" || op === "NOT IN") {
+			d.set_df_property("value", "hidden", 0);
+			d.set_df_property("value", "label", __("Values (comma separated)"));
+			d.set_df_property("value", "reqd", 1);
+			d.set_df_property("value_to", "hidden", 1);
+			d.set_df_property("value_to", "reqd", 0);
+			if (d.get_field("value") && d.get_field("value").$wrapper) {
+				d.get_field("value").$wrapper.show();
+				if (d.get_field("value").$label) d.get_field("value").$label.text(__("Values (comma separated)"));
+			}
+			if (d.get_field("value_to") && d.get_field("value_to").$wrapper) d.get_field("value_to").$wrapper.hide();
+		} else {
+			d.set_df_property("value", "hidden", 0);
+			d.set_df_property("value", "label", __("Value"));
+			d.set_df_property("value", "reqd", 1);
+			d.set_df_property("value_to", "hidden", 1);
+			d.set_df_property("value_to", "reqd", 0);
+			if (d.get_field("value") && d.get_field("value").$wrapper) {
+				d.get_field("value").$wrapper.show();
+				if (d.get_field("value").$label) d.get_field("value").$label.text(__("Value"));
+			}
+			if (d.get_field("value_to") && d.get_field("value_to").$wrapper) d.get_field("value_to").$wrapper.hide();
+		}
+	}
+
 	d.show();
+
+	// Listen to operator changes
+	const op_ctrl = d.get_field("operator");
+	if (op_ctrl && op_ctrl.$input) {
+		op_ctrl.$input.on("change", function () {
+			const selected_op = $(this).val();
+			update_ui_for_operator(selected_op);
+		});
+	}
 }
 
 // -------------------------------------------------------------
@@ -643,24 +953,110 @@ function render_agg_list(state, $main) {
 function open_add_agg_dialog(state, $main) {
 	if (!state.base_doctype) return frappe.msgprint(__("Please select a Base DocType first"));
 
-	const field_options = ["*"].concat(get_all_queryable_field_options(state));
+	const initial_func = "SUM";
+	let initial_options = get_compatible_agg_field_options(state, initial_func);
+	if (!initial_options.length) {
+		initial_options = [{ label: __("-- No compatible fields found --"), value: "" }];
+	}
+
 	const d = new frappe.ui.Dialog({
 		title: __("Add Aggregation"),
 		fields: [
-			{ fieldname: "func", label: __("Function"), fieldtype: "Select", options: ["SUM", "COUNT", "AVG", "MIN", "MAX"], default: "SUM", reqd: 1 },
-			{ fieldname: "field", label: __("Field"), fieldtype: "Select", options: field_options, default: "*", reqd: 1 },
-			{ fieldname: "alias", label: __("Alias"), fieldtype: "Data", default: "total_val" }
+			{
+				fieldname: "func",
+				label: __("Function"),
+				fieldtype: "Select",
+				options: ["SUM", "COUNT", "AVG", "MIN", "MAX"],
+				default: initial_func,
+				reqd: 1
+			},
+			{
+				fieldname: "field",
+				label: __("Field"),
+				fieldtype: "Select",
+				options: initial_options,
+				reqd: 1
+			},
+			{
+				fieldname: "alias",
+				label: __("Alias"),
+				fieldtype: "Data",
+				default: "total_val"
+			}
 		],
 		primary_action_label: __("Add Aggregation"),
 		primary_action: function (values) {
+			if (!values.field) {
+				return frappe.msgprint(__("Please select a valid compatible field."));
+			}
+			if (!values.alias) {
+				const f_clean = values.field === "*" ? "all" : values.field.replace(/\./g, "_");
+				values.alias = `${values.func.toLowerCase()}_${f_clean}`;
+			}
 			state.aggregations.push(values);
 			d.hide();
 			refresh_ui(state, $main);
 		}
 	});
-	d.show();
-}
 
+	function update_fields_for_func(new_func) {
+		let new_options = get_compatible_agg_field_options(state, new_func);
+		if (!new_options.length) {
+			new_options = [{ label: __("-- No compatible fields found --"), value: "" }];
+		}
+		const current_field = d.get_value("field");
+		const is_compat = new_options.some(function (opt) {
+			return (opt.value || opt) === current_field && current_field !== "";
+		});
+
+		d.set_df_property("field", "options", new_options);
+		const field_ctrl = d.get_field("field");
+		if (field_ctrl && field_ctrl.$input) {
+			field_ctrl.$input.empty();
+			new_options.forEach(function (opt) {
+				field_ctrl.$input.append($("<option>", { value: opt.value, text: opt.label }));
+			});
+		}
+
+		if (is_compat && current_field) {
+			d.set_value("field", current_field);
+		} else {
+			// Clear field selection if incompatible (Option A from Req 7)
+			d.set_value("field", "");
+		}
+
+		// Update default alias suggestion
+		if (new_func === "COUNT") {
+			if (!d.get_value("alias") || d.get_value("alias") === "total_val") {
+				d.set_value("alias", "total_count");
+			}
+		}
+	}
+
+	d.show();
+
+	// Attach change listener to func
+	const func_ctrl = d.get_field("func");
+	if (func_ctrl && func_ctrl.$input) {
+		func_ctrl.$input.on("change", function () {
+			const fn = $(this).val();
+			update_fields_for_func(fn);
+		});
+	}
+
+	// Also attach field change listener to update alias if empty or default
+	const field_ctrl = d.get_field("field");
+	if (field_ctrl && field_ctrl.$input) {
+		field_ctrl.$input.on("change", function () {
+			const fval = $(this).val();
+			const fn = d.get_value("func") || "sum";
+			if (fval) {
+				const f_clean = fval === "*" ? "all" : fval.replace(/\./g, "_");
+				d.set_value("alias", `${fn.toLowerCase()}_${f_clean}`);
+			}
+		});
+	}
+}
 // -------------------------------------------------------------
 // Order By UI
 // -------------------------------------------------------------
@@ -768,7 +1164,7 @@ function open_add_calc_dialog(state, $main) {
 function get_all_queryable_field_options(state) {
 	const options = [];
 	(state.available_fields || []).forEach(function (f) {
-		if (!f.is_virtual) options.push(f.fieldname);
+		if (!f.is_virtual && !['Section Break','Column Break','Tab Break','HTML'].includes(f.fieldtype)) options.push(f.fieldname);
 	});
 	Object.keys(state.expanded_rel_fields).forEach(function (path) {
 		const fields = state.expanded_rel_fields[path] || [];
@@ -794,7 +1190,7 @@ function highlight_sql(sql) {
 	escaped = escaped.replace(/('(?:''|[^'\\]|\\.)*')/g, '<span class="sql-str">$1</span>');
 
 	// Parameters %(param_name)s
-	escaped = escaped.replace(/(%\([^)]+\)s)/g, '<span class="sql-param">$1</span>');
+
 
 	// Backticked identifiers
 	escaped = escaped.replace(/(`[^`]+`)/g, '<span class="sql-ident">$1</span>');
@@ -869,12 +1265,99 @@ function render_joins_list(state, $main) {
 
 		$j_item.find(".urb-join-type-sel").on("change", function () {
 			state.joins[r_path] = $(this).val();
-			queue_sql_generation(state, $main);
-		});
+			});
 
 		$joins_box.append($j_item);
 	});
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 function render_graph(state, $main) {
 	const $svg = $main.find("#urb-graph-svg");
@@ -885,7 +1368,6 @@ function render_graph(state, $main) {
 		$svg.empty().hide();
 		return;
 	}
-
 	$empty.hide();
 	$svg.empty().show();
 
@@ -964,15 +1446,8 @@ function render_graph(state, $main) {
 
 	$svg.html(full_svg);
 
-
 }
 
-function queue_sql_generation(state, $main) {
-	if (state.debounce_timer) clearTimeout(state.debounce_timer);
-	state.debounce_timer = setTimeout(function () {
-		trigger_generate_sql(state, $main, false);
-	}, 300);
-}
 
 function trigger_generate_sql(state, $main, user_initiated) {
 	if (!state.base_doctype) {
@@ -1009,11 +1484,11 @@ function trigger_generate_sql(state, $main, user_initiated) {
 		callback: function (r) {
 			if (r && r.message && r.message.success) {
 				state.sql = r.message.sql;
-				state.params = r.message.params || {};
 				state.explanation = r.message.explanation || "";
 
+
 				$main.find("#urb-sql-output code").html(highlight_sql(state.sql));
-				$main.find("#urb-params-output").text(JSON.stringify(state.params, null, 2));
+
 				$main.find("#urb-query-explanation").html(
 					`<div class="urb-explanation-text">${frappe.utils.escape_html(state.explanation).replace(/\n/g, '<br>')}</div>`
 				);
@@ -1034,7 +1509,7 @@ function trigger_generate_sql(state, $main, user_initiated) {
 
 function clear_sql_display($main) {
 	$main.find("#urb-sql-output code").html('<span class="sql-comment">-- Select fields or aggregations to generate SQL</span>');
-	$main.find("#urb-params-output").text("{}");
+
 	$main.find("#urb-query-explanation").html(
 		'<div class="text-muted">A structured breakdown of the query construction will appear here.</div>'
 	);
@@ -1054,7 +1529,7 @@ function reset_state(state, $main) {
 	state.order_by = [];
 	state.calculated_fields = [];
 	state.sql = "";
-	state.params = {};
+
 	state.explanation = "";
 
 	$main.find("#urb-doctype-input").val("");

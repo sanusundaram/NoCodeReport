@@ -10,6 +10,7 @@ from nocodereport.query_engine.sql_generator import SQLGenerator
 def generate_sql(spec: str | dict) -> dict:
 	"""
 	Whitelisted endpoint to validate query configuration and generate safe, formatted SQL.
+	Filter values are inlined directly into the SQL (no separate parameter dictionary).
 	"""
 	if isinstance(spec, str):
 		try:
@@ -36,7 +37,6 @@ def generate_sql(spec: str | dict) -> dict:
 			"success": True,
 			"sql": gen_res["sql"],
 			"raw_sql": gen_res["raw_sql"],
-			"params": gen_res["params"],
 			"explanation": plan["explanation"],
 			"fields_count": len(plan["fields"]),
 			"joins_count": gen_res.get("joins_count", len(plan.get("joins", []))),
