@@ -1,0 +1,241 @@
+<div class="urb-container">
+	<!-- Top Controls Toolbar -->
+	<div class="urb-topbar">
+		<div class="urb-topbar-left">
+			<div class="urb-doctype-picker-group">
+				<label for="urb-doctype-input" class="urb-label">Base DocType</label>
+				<div class="urb-input-wrapper">
+					<input type="text" id="urb-doctype-input" class="form-control" placeholder="Search & Select DocType..." autocomplete="off">
+					<span id="urb-doctype-status" class="urb-status-indicator"></span>
+				</div>
+			</div>
+			<div id="urb-perm-badge" class="urb-badge-perm hidden">
+				<span class="indicator-pill green"><i class="fa fa-shield"></i> Read Permitted</span>
+			</div>
+		</div>
+		<div class="urb-topbar-actions">
+			<button id="urb-btn-new" class="btn btn-default btn-sm" title="Clear all and start fresh">
+				<i class="fa fa-refresh"></i> Reset
+			</button>
+			<button id="urb-btn-generate" class="btn btn-primary btn-sm">
+				<i class="fa fa-bolt"></i> Generate SQL
+			</button>
+			<button id="urb-btn-copy-sql" class="btn btn-secondary btn-sm">
+				<i class="fa fa-clipboard"></i> Copy SQL
+			</button>
+			<button id="urb-btn-copy-params" class="btn btn-secondary btn-sm" title="Copy SQL with parameter dictionary">
+				<i class="fa fa-code"></i> Copy with Params
+			</button>
+		</div>
+	</div>
+
+	<!-- Alert / Error Banner -->
+	<div id="urb-alert-box" class="urb-alert-box hidden">
+		<div class="urb-alert-content">
+			<i class="fa fa-exclamation-triangle urb-alert-icon"></i>
+			<div class="urb-alert-text" id="urb-alert-message"></div>
+		</div>
+		<button class="btn btn-xs btn-link urb-alert-close" id="urb-alert-close">&times;</button>
+	</div>
+
+	<!-- Workspace 3-Column Layout -->
+	<div class="urb-workspace">
+		<!-- Left Column: Accordion with all 8 tools -->
+		<div class="urb-col urb-col-left">
+			<!-- Section 1: Available Fields -->
+			<div class="urb-panel-card">
+				<div class="urb-panel-header">
+					<span class="urb-panel-title">1. Available Fields</span>
+					<div class="urb-panel-tools">
+						<button id="urb-btn-select-all" class="btn btn-xs btn-default" title="Select all direct fields">All</button>
+						<button id="urb-btn-clear-all" class="btn btn-xs btn-default" title="Clear selected fields">Clear</button>
+					</div>
+				</div>
+				<div class="urb-panel-search">
+					<input type="text" id="urb-field-search" class="form-control input-xs" placeholder="Filter fields...">
+				</div>
+				<div class="urb-fields-list-container" id="urb-fields-list">
+					<div class="urb-empty-placeholder">
+						<i class="fa fa-database"></i>
+						<p>Select a Base DocType above to discover available fields</p>
+					</div>
+				</div>
+			</div>
+
+			<!-- Section 2: Relationships Explorer -->
+			<div class="urb-panel-card urb-mt-1">
+				<div class="urb-panel-header urb-clickable" id="urb-rel-header">
+					<span class="urb-panel-title">2. Relationships</span>
+					<span class="urb-badge-count" id="urb-rel-count">0</span>
+				</div>
+				<div class="urb-panel-body" id="urb-rel-body">
+					<div class="urb-subtext" id="urb-rel-hint">Discovered Link fields and Child Tables appear here. Click to expand fields.</div>
+					<div id="urb-rel-tree" class="urb-tree-view"></div>
+				</div>
+			</div>
+
+			<!-- Section 3: Filters (AND/OR Groups) -->
+			<div class="urb-panel-card urb-mt-1">
+				<div class="urb-panel-header">
+					<span class="urb-panel-title">3. Filters</span>
+					<button id="urb-btn-add-filter" class="btn btn-xs btn-primary"><i class="fa fa-plus"></i> Add Filter</button>
+				</div>
+				<div class="urb-panel-body">
+					<div id="urb-filters-container" class="urb-filters-list">
+						<div class="text-muted text-center" style="font-size: 11px; padding: 6px;">No filters configured</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- Section 4: Joins Config -->
+			<div class="urb-panel-card urb-mt-1">
+				<div class="urb-panel-header">
+					<span class="urb-panel-title">4. Joins</span>
+					<span class="urb-badge-count" id="urb-joins-count">0</span>
+				</div>
+				<div class="urb-panel-body">
+					<div id="urb-joins-container" class="urb-joins-list">
+						<div class="text-muted text-center" style="font-size: 11px; padding: 6px;">Auto-detected joins will appear here</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- Section 5: Group By -->
+			<div class="urb-panel-card urb-mt-1">
+				<div class="urb-panel-header">
+					<span class="urb-panel-title">5. Group By</span>
+					<button id="urb-btn-add-group" class="btn btn-xs btn-default"><i class="fa fa-plus"></i> Add</button>
+				</div>
+				<div class="urb-panel-body">
+					<div id="urb-group-container" class="urb-chips-container">
+						<div class="text-muted text-center" style="font-size: 11px; padding: 6px;">No grouping</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- Section 6: Aggregations -->
+			<div class="urb-panel-card urb-mt-1">
+				<div class="urb-panel-header">
+					<span class="urb-panel-title">6. Aggregations</span>
+					<button id="urb-btn-add-agg" class="btn btn-xs btn-default"><i class="fa fa-plus"></i> Add</button>
+				</div>
+				<div class="urb-panel-body">
+					<div id="urb-agg-container" class="urb-chips-container">
+						<div class="text-muted text-center" style="font-size: 11px; padding: 6px;">No aggregations</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- Section 7: Order By -->
+			<div class="urb-panel-card urb-mt-1">
+				<div class="urb-panel-header">
+					<span class="urb-panel-title">7. Order By</span>
+					<button id="urb-btn-add-order" class="btn btn-xs btn-default"><i class="fa fa-plus"></i> Add</button>
+				</div>
+				<div class="urb-panel-body">
+					<div id="urb-order-container" class="urb-chips-container">
+						<div class="text-muted text-center" style="font-size: 11px; padding: 6px;">No ordering rules</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- Section 8: Calculated Fields -->
+			<div class="urb-panel-card urb-mt-1">
+				<div class="urb-panel-header">
+					<span class="urb-panel-title">8. Calculated Fields</span>
+					<button id="urb-btn-add-calc" class="btn btn-xs btn-default"><i class="fa fa-plus"></i> Add</button>
+				</div>
+				<div class="urb-panel-body">
+					<div id="urb-calc-container" class="urb-chips-container">
+						<div class="text-muted text-center" style="font-size: 11px; padding: 6px;">No calculated fields</div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Center Column: Visual Query Designer -->
+		<div class="urb-col urb-col-center">
+			<!-- Selected Columns Table -->
+			<div class="urb-panel-card">
+				<div class="urb-panel-header">
+					<span class="urb-panel-title">Selected Columns</span>
+					<span class="urb-badge-count" id="urb-selected-count">0</span>
+				</div>
+				<div class="urb-selected-fields-table-wrapper">
+					<table class="table table-bordered urb-table-selected" id="urb-selected-table">
+						<thead>
+							<tr>
+								<th style="width: 35px;">#</th>
+								<th>Field</th>
+								<th>DocType</th>
+								<th>Type</th>
+								<th>Alias</th>
+								<th style="width: 45px;">Action</th>
+							</tr>
+						</thead>
+						<tbody id="urb-selected-tbody">
+							<tr class="urb-no-fields-row">
+								<td colspan="6" class="text-center text-muted">
+									No fields selected. Choose fields from the left sidebar to add them to your query.
+								</td>
+							</tr>
+						</tbody>
+					</table>
+				</div>
+			</div>
+
+			<!-- Query Summary & Explanation Card -->
+			<div class="urb-panel-card urb-mt-1">
+				<div class="urb-panel-header">
+					<span class="urb-panel-title">Query Explanation</span>
+				</div>
+				<div class="urb-panel-body">
+					<div id="urb-query-explanation" class="urb-explanation-box">
+						<div class="text-muted">A structured breakdown of the query construction will appear here.</div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Right Column: Live Generated SQL -->
+		<div class="urb-col urb-col-right">
+			<div class="urb-panel-card urb-h-100">
+				<div class="urb-panel-header">
+					<span class="urb-panel-title">Generated SQL</span>
+					<div class="urb-panel-tools">
+						<span class="badge badge-info" id="urb-sql-dbtype">MariaDB</span>
+					</div>
+				</div>
+				<div class="urb-sql-editor-container">
+					<pre id="urb-sql-output" class="urb-sql-pre"><code>-- Safe parameterized SQL will be generated here
+-- Select a DocType and fields to begin</code></pre>
+				</div>
+				<div class="urb-params-container">
+					<div class="urb-panel-header-small">Parameters (Dictionary)</div>
+					<pre id="urb-params-output" class="urb-params-pre">{}</pre>
+				</div>
+				<div class="urb-disclaimer">
+					<small><i class="fa fa-info-circle"></i> This tool validates Frappe metadata access for the current user. The generated SQL itself does not automatically reproduce Frappe&#39;s full permission layer when executed directly against the database.</small>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- Bottom Panel: Visual Relationship Graph -->
+	<div class="urb-bottom-panel">
+		<div class="urb-panel-card">
+			<div class="urb-panel-header">
+				<span class="urb-panel-title">Visual Relationship Graph</span>
+				<div class="urb-panel-tools">
+					<button id="urb-btn-fit-graph" class="btn btn-xs btn-default"><i class="fa fa-arrows-alt"></i> Redraw Graph</button>
+				</div>
+			</div>
+			<div class="urb-graph-container" id="urb-graph-viewport">
+				<div class="urb-empty-graph" id="urb-graph-empty">
+					<span>Select a DocType and relationships to visualize the connected schema graph</span>
+				</div>
+				<svg id="urb-graph-svg" class="urb-graph-svg" viewBox="0 0 960 220"></svg>
+			</div>
+		</div>
+	</div>
+</div>
