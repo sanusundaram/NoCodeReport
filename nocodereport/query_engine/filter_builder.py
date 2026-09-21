@@ -25,26 +25,59 @@ class FilterValidationError(frappe.ValidationError):
 	pass
 
 
+def _escape_sql_string(value) -> str:
+	"""
+	Escapes a string value for safe inline SQL inclusion.
+	Single quotes are doubled (SQL standard escaping).
+	"""
+	s = str(value)
+	s = s.replace("'", "''")
+	return f"'{s}'"
+
+
+def _format_sql_value(value) -> str:
+	"""
+	Formats a filter value directly into a SQL-safe literal.
+	- None      -> NULL
+	- bool      -> 1 or 0
+	- int/float -> numeric literal
+	- str       -> escaped string literal
+	"""
+	if value is None:
+		return "NULL"
+	if isinstance(value, bool):
+		return "1" if value else "0"
+	if isinstance(value, (int, float)):
+		return str(value)
+	# Try numeric coercion for strings that look like numbers
+	s = str(value)
+	try:
+		int_val = int(s)
+		return str(int_val)
+	except ValueError:
+		pass
+	try:
+		float_val = float(s)
+		return str(float_val)
+	except ValueError:
+		pass
+	return _escape_sql_string(s)
+
+
 class FilterBuilder:
 	"""
-	Validates and compiles an AST filter tree into parameterized SQL WHERE clauses.
-	Maintains a parameter dictionary to prevent SQL injection.
+	Validates and compiles an AST filter tree into SQL WHERE clauses
+	with inline literal values (no %(param)s parameter placeholders).
 	"""
 
 	def __init__(self, table_instances: dict, base_table_key: str = ""):
 		self.table_instances = table_instances
 		self.base_table_key = base_table_key
-		self.params = {}
-		self.param_counter = 0
-
-	def _next_param_key(self, fieldname: str) -> str:
-		self.param_counter += 1
-		clean_name = re.sub(r"[^A-Za-z0-9_]", "_", fieldname)
-		return f"p_{clean_name}_{self.param_counter}"
 
 	def build(self, filter_spec: dict | list) -> tuple[str, dict]:
 		"""
-		Takes an AST filter specification and returns (where_clause_sql, params_dict).
+		Takes an AST filter specification and returns (where_clause_sql, empty_params_dict).
+		Values are inlined directly into the SQL string.
 		"""
 		if not filter_spec:
 			return "", {}
@@ -53,7 +86,7 @@ class FilterBuilder:
 			filter_spec = {"operator": "AND", "conditions": filter_spec}
 
 		clause = self._process_group(filter_spec)
-		return clause, self.params
+		return clause, {}
 
 	def _process_group(self, group: dict) -> str:
 		operator = group.get("operator", "AND").upper()
@@ -123,12 +156,8 @@ class FilterBuilder:
 			if not val:
 				return "1=1" if op == "IN" else "1=0"
 
-			placeholders = []
-			for v in val:
-				pk = self._next_param_key(col_name)
-				self.params[pk] = v
-				placeholders.append(f"%({pk})s")
-			return f"{col_sql} {op} ({', '.join(placeholders)})"
+			literals = [_format_sql_value(v) for v in val]
+			return f"{col_sql} {op} ({', '.join(literals)})"
 
 		if op == "BETWEEN":
 			if isinstance(val, (list, tuple)) and len(val) >= 2:
@@ -138,13 +167,7 @@ class FilterBuilder:
 				val1 = vals[0].strip() if len(vals) > 0 else ""
 				val2 = vals[1].strip() if len(vals) > 1 else ""
 
-			pk1 = self._next_param_key(f"{col_name}_start")
-			pk2 = self._next_param_key(f"{col_name}_end")
-			self.params[pk1] = val1
-			self.params[pk2] = val2
-			return f"{col_sql} BETWEEN %({pk1})s AND %({pk2})s"
+			return f"{col_sql} BETWEEN {_format_sql_value(val1)} AND {_format_sql_value(val2)}"
 
 		# Standard binary comparison
-		pk = self._next_param_key(col_name)
-		self.params[pk] = val
-		return f"{col_sql} {op} %({pk})s"
+		return f"{col_sql} {op} {_format_sql_value(val)}"

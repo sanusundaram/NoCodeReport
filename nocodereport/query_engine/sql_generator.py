@@ -10,7 +10,7 @@ class SQLGenerator:
 	- Multi-table JOINs with short table aliases (e.g. e, d, w)
 	- Calculated field expressions
 	- Aggregation functions (SUM, COUNT, AVG, MIN, MAX)
-	- Parameterized WHERE clauses with nested AND/OR
+	- Inline literal WHERE clauses with nested AND/OR
 	- GROUP BY (with date intervals)
 	- ORDER BY (ASC/DESC)
 	- LIMIT
@@ -23,7 +23,6 @@ class SQLGenerator:
 		self.joins = plan.get("joins", [])
 		self.table_instances = plan.get("table_instances", {})
 		self.where_clause = plan.get("where_clause", "")
-		self.filter_params = plan.get("filter_params", {})
 		self.group_by = plan.get("group_by", [])
 		self.aggregations = plan.get("aggregations", [])
 		self.calculated_fields = plan.get("calculated_fields", [])
@@ -104,6 +103,5 @@ class SQLGenerator:
 		return {
 			"raw_sql": raw_sql,
 			"sql": formatted,
-			"params": self.filter_params,
 			"joins_count": len(self.joins)
 		}

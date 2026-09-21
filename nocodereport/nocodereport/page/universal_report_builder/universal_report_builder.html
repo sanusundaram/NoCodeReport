@@ -1,16 +1,17 @@
-<div class="urb-container">
+﻿<div class="urb-container">
 	<!-- Top Controls Toolbar -->
 	<div class="urb-topbar">
 		<div class="urb-topbar-left">
 			<div class="urb-doctype-picker-group">
 				<label for="urb-doctype-input" class="urb-label">Base DocType</label>
 				<div class="urb-input-wrapper">
-					<input type="text" id="urb-doctype-input" class="form-control" placeholder="Search & Select DocType..." autocomplete="off">
+					<input type="text" id="urb-doctype-input" class="form-control" placeholder="Search & Select DocType..."
+						autocomplete="off">
 					<span id="urb-doctype-status" class="urb-status-indicator"></span>
 				</div>
 			</div>
 			<div id="urb-perm-badge" class="urb-badge-perm hidden">
-				<span class="indicator-pill green"><i class="fa fa-shield"></i> Read Permitted</span>
+				<span class="indicator-pill green">Read Permitted</span>
 			</div>
 		</div>
 		<div class="urb-topbar-actions">
@@ -22,9 +23,6 @@
 			</button>
 			<button id="urb-btn-copy-sql" class="btn btn-secondary btn-sm">
 				<i class="fa fa-clipboard"></i> Copy SQL
-			</button>
-			<button id="urb-btn-copy-params" class="btn btn-secondary btn-sm" title="Copy SQL with parameter dictionary">
-				<i class="fa fa-code"></i> Copy with Params
 			</button>
 		</div>
 	</div>
@@ -69,7 +67,8 @@
 					<span class="urb-badge-count" id="urb-rel-count">0</span>
 				</div>
 				<div class="urb-panel-body" id="urb-rel-body">
-					<div class="urb-subtext" id="urb-rel-hint">Discovered Link fields and Child Tables appear here. Click to expand fields.</div>
+					<div class="urb-subtext" id="urb-rel-hint">Discovered Link fields and Child Tables appear here. Click to
+						expand fields.</div>
 					<div id="urb-rel-tree" class="urb-tree-view"></div>
 				</div>
 			</div>
@@ -95,7 +94,8 @@
 				</div>
 				<div class="urb-panel-body">
 					<div id="urb-joins-container" class="urb-joins-list">
-						<div class="text-muted text-center" style="font-size: 11px; padding: 6px;">Auto-detected joins will appear here</div>
+						<div class="text-muted text-center" style="font-size: 11px; padding: 6px;">Auto-detected joins will appear
+							here</div>
 					</div>
 				</div>
 			</div>
@@ -207,15 +207,13 @@
 					</div>
 				</div>
 				<div class="urb-sql-editor-container">
-					<pre id="urb-sql-output" class="urb-sql-pre"><code>-- Safe parameterized SQL will be generated here
+					<pre id="urb-sql-output" class="urb-sql-pre"><code>-- SQL will appear here after clicking Generate SQL
 -- Select a DocType and fields to begin</code></pre>
 				</div>
-				<div class="urb-params-container">
-					<div class="urb-panel-header-small">Parameters (Dictionary)</div>
-					<pre id="urb-params-output" class="urb-params-pre">{}</pre>
-				</div>
 				<div class="urb-disclaimer">
-					<small><i class="fa fa-info-circle"></i> This tool validates Frappe metadata access for the current user. The generated SQL itself does not automatically reproduce Frappe&#39;s full permission layer when executed directly against the database.</small>
+					<small><i class="fa fa-info-circle"></i> This tool validates Frappe metadata access for the current user. The
+						generated SQL itself does not automatically reproduce Frappe&#39;s full permission layer when executed
+						directly against the database.</small>
 				</div>
 			</div>
 		</div>
@@ -226,9 +224,6 @@
 		<div class="urb-panel-card">
 			<div class="urb-panel-header">
 				<span class="urb-panel-title">Visual Relationship Graph</span>
-				<div class="urb-panel-tools">
-					<button id="urb-btn-fit-graph" class="btn btn-xs btn-default"><i class="fa fa-arrows-alt"></i> Redraw Graph</button>
-				</div>
 			</div>
 			<div class="urb-graph-container" id="urb-graph-viewport">
 				<div class="urb-empty-graph" id="urb-graph-empty">
